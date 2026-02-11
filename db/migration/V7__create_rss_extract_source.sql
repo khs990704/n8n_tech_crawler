@@ -1,0 +1,5 @@
+CREATE TABLE IF NOT EXISTS public.rss_extract_source (
+  sn BIGSERIAL PRIMARY KEY,
+  extract_date DATE NOT NULL DEFAULT CURRENT_DATE,
+  src TEXT NOT NULL
+);

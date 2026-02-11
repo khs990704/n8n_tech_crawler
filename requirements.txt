@@ -1,0 +1,12 @@
+# API framework
+fastapi==0.116.1
+pydantic==2.12.5
+
+# ASGI server
+uvicorn==0.35.0
+
+# Word cloud generation
+wordcloud==1.9.4
+
+# RSS parsing utility
+feedparser==6.0.12

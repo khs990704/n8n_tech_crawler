@@ -1,0 +1,6 @@
+wordcloud_output/3days_wordcloud.png
+wordcloud_output/7days_wordcloud.png
+wordcloud_output/1month_wordcloud.png
+__pycache__/
+*.pyc
+BMDOHYEON_ttf.ttf

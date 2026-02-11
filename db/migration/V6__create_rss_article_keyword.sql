@@ -1,0 +1,5 @@
+CREATE TABLE IF NOT EXISTS public.rss_article_keyword (
+  sn BIGSERIAL PRIMARY KEY,
+  keyword TEXT NOT NULL,
+  date DATE NOT NULL DEFAULT CURRENT_DATE
+);
