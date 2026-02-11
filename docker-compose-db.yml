@@ -3,9 +3,9 @@ services:
     image: postgres:16
     container_name: n8n_db
     environment:
-      - POSTGRES_DB=n8n_db
-      - POSTGRES_USER=hskim
-      - POSTGRES_PASSWORD=guiyomi7471@?
+      - POSTGRES_DB=${N8N_DB_NAME}
+      - POSTGRES_USER=${N8N_DB_USER}
+      - POSTGRES_PASSWORD=${N8N_DB_PASSWORD}
       - TZ=Asia/Seoul
     ports:
       - "5432:5432"
@@ -13,7 +13,7 @@ services:
       - n8n_db_data:/var/lib/postgresql/data
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U hskim"]
+      test: ["CMD-SHELL", "pg_isready -U ${N8N_DB_USER}"]
       interval: 1m30s
       timeout: 30s
       retries: 5
@@ -25,9 +25,9 @@ services:
       db:
         condition: service_healthy
     command: >
-      -url=jdbc:postgresql://db:5432/n8n_db
-      -user=hskim
-      -password=guiyomi7471@?
+      -url=jdbc:postgresql://db:5432/${N8N_DB_NAME}
+      -user=${N8N_DB_USER}
+      -password=${N8N_DB_PASSWORD}
       -locations=filesystem:/flyway/sql
       -baselineOnMigrate=true
       -connectRetries=60

@@ -48,6 +48,28 @@ This project provides an integrated setup for the following pipeline:
 
 ---
 
+## Environment Variables
+
+Create a `.env` file in the project root with values like the following:
+
+```env
+N8N_ENCRYPTION_KEY=your_random_secret_key
+
+# docker-compose-db.yml
+N8N_DB_NAME=n8n_db
+N8N_DB_USER=your_db_user
+N8N_DB_PASSWORD=your_db_password
+
+# docker-compose-n8n.yml (internal n8n postgres)
+N8N_POSTGRES_DB=n8n
+N8N_POSTGRES_USER=n8n
+N8N_POSTGRES_PASSWORD=n8n
+```
+
+Make sure this file is not committed to Git.
+
+---
+
 ## Quick Start
 
 ### 0) Download Korean Font (Required for WordCloud)
