@@ -1,11 +1,15 @@
+import os
+from pathlib import Path
 from typing import Dict, List
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, RootModel
 from wordcloud import WordCloud
 
 
-font_path = "/home/hskim/project/n8n/BMDOHYEON_ttf.ttf"
+BASE_DIR = Path(__file__).resolve().parent
+OUTPUT_DIR = BASE_DIR / "wordcloud_output"
+DEFAULT_FONT_PATH = BASE_DIR / "BMDOHYEON_ttf.ttf"
 
 
 class PeriodFrequencies(BaseModel):
@@ -34,10 +38,18 @@ def generate_wordclouds(payload: GenerateRequest):
     keywords_list = [keywords_3days, keywords_7days, keywords_30days]
     list_name = ["3days", "7days", "1month"]
 
-    wc = WordCloud(width=1000, height=700, font_path=font_path)
+    font_path = Path(os.getenv("WORDCLOUD_FONT_PATH", str(DEFAULT_FONT_PATH)))
+    if not font_path.exists():
+        raise HTTPException(
+            status_code=500,
+            detail=f"Font file not found: {font_path}",
+        )
+
+    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    wc = WordCloud(width=1000, height=700, font_path=str(font_path))
 
     for idx, keywords in enumerate(keywords_list):
         wordcloud_img = wc.generate_from_frequencies(keywords)
-        wordcloud_img.to_file(f"/home/hskim/project/n8n/wordcloud_output/{list_name[idx]}_wordcloud.png")
+        wordcloud_img.to_file(str(OUTPUT_DIR / f"{list_name[idx]}_wordcloud.png"))
 
     return payload.root
