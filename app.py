@@ -24,19 +24,17 @@ class GenerateRequest(RootModel[List[PeriodFrequencies]]):
 app = FastAPI(title="Simple Payload Echo API", version="1.0.0")
 
 
+def top_n_frequencies(freq: Dict[str, int], n: int = 5) -> Dict[str, int]:
+    top_items = sorted(freq.items(), key=lambda item: item[1], reverse=True)[:n]
+    return dict(top_items)
+
+
 @app.post("/wordclouds/generate")
 def generate_wordclouds(payload: GenerateRequest):
 
-    keywords_3days = dict(payload.root[0].frequencies)
-
-    keywords_7days = dict(payload.root[1].frequencies)
-    # print(f"[LOG] 7Days Keywords: {keywords_7days}")
-
-    keywords_30days = dict(payload.root[2].frequencies)
-    # print(f"[LOG] 1Month Keywords: {keywords_30days}")
-
-    keywords_list = [keywords_3days, keywords_7days, keywords_30days]
-    list_name = ["3days", "7days", "1month"]
+    periods = payload.root
+    keywords_list = [dict(item.frequencies) for item in periods]
+    list_name = [item.period for item in periods]
 
     font_path = Path(os.getenv("WORDCLOUD_FONT_PATH", str(DEFAULT_FONT_PATH)))
     if not font_path.exists():
@@ -52,4 +50,10 @@ def generate_wordclouds(payload: GenerateRequest):
         wordcloud_img = wc.generate_from_frequencies(keywords)
         wordcloud_img.to_file(str(OUTPUT_DIR / f"{list_name[idx]}_wordcloud.png"))
 
-    return payload.root
+    return [
+        {
+            "period": item.period,
+            "frequencies": top_n_frequencies(item.frequencies, 5),
+        }
+        for item in periods
+    ]
