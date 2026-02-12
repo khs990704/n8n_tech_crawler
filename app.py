@@ -1,9 +1,13 @@
 import os
 from pathlib import Path
-from typing import Dict, List
+from typing import Dict, List, Literal
 
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, RootModel
+import psycopg2
+from psycopg2.extras import RealDictCursor
 from wordcloud import WordCloud
 
 
@@ -22,6 +26,47 @@ class GenerateRequest(RootModel[List[PeriodFrequencies]]):
 
 
 app = FastAPI(title="Simple Payload Echo API", version="1.0.0")
+OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+app.mount("/media", StaticFiles(directory=str(OUTPUT_DIR)), name="media")
+
+cors_origins = os.getenv(
+    "CORS_ALLOW_ORIGINS",
+    "http://localhost:6075,http://localhost:5173,http://localhost:3000",
+)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[origin.strip() for origin in cors_origins.split(",") if origin.strip()],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+
+class KeywordInfoRow(BaseModel):
+    keyword: str
+    title: str
+    link: str
+
+
+def get_required_env(*keys: str) -> str:
+    for key in keys:
+        value = os.getenv(key)
+        if value:
+            return value
+    raise HTTPException(
+        status_code=500,
+        detail=f"Missing required environment variable. Expected one of: {', '.join(keys)}",
+    )
+
+
+def get_db_connection():
+    return psycopg2.connect(
+        host=os.getenv("DB_HOST", "localhost"),
+        port=int(os.getenv("DB_PORT", "5432")),
+        dbname=get_required_env("DB_NAME", "N8N_DB_NAME"),
+        user=get_required_env("DB_USER", "N8N_DB_USER"),
+        password=get_required_env("DB_PASSWORD", "N8N_DB_PASSWORD"),
+    )
 
 
 def top_n_frequencies(freq: Dict[str, int], n: int = 5) -> Dict[str, int]:
@@ -48,7 +93,7 @@ def generate_wordclouds(payload: GenerateRequest):
 
     for idx, keywords in enumerate(keywords_list):
         wordcloud_img = wc.generate_from_frequencies(keywords)
-        wordcloud_img.to_file(str(OUTPUT_DIR / f"{list_name[idx]}_wordcloud.png"))
+        wordcloud_img.to_file(str(OUTPUT_DIR / f"wordcloud_{list_name[idx]}.png"))
 
     return [
         {
@@ -57,3 +102,21 @@ def generate_wordclouds(payload: GenerateRequest):
         }
         for item in periods
     ]
+
+
+@app.get("/keyword-info/{period}", response_model=List[KeywordInfoRow])
+def get_keyword_info(period: Literal["3day", "7day", "1month"]):
+    query = """
+        SELECT keyword, title, link
+        FROM public.keyword_info
+        WHERE period = %s
+        ORDER BY keyword, title
+    """
+    try:
+        with get_db_connection() as conn:
+            with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                cur.execute(query, (period,))
+                rows = cur.fetchall()
+                return [KeywordInfoRow(**row) for row in rows]
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"DB query failed: {exc}")

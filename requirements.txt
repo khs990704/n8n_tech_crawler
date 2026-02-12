@@ -10,3 +10,6 @@ wordcloud==1.9.4
 
 # RSS parsing utility
 feedparser==6.0.12
+
+# PostgreSQL client
+psycopg2-binary==2.9.10
