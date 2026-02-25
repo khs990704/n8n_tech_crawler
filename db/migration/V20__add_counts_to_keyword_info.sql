@@ -1,0 +1,2 @@
+ALTER TABLE public.keyword_info
+  ADD COLUMN IF NOT EXISTS counts INTEGER NOT NULL DEFAULT 0;
