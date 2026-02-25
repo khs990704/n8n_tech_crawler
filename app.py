@@ -19,6 +19,7 @@ DEFAULT_FONT_PATH = BASE_DIR / "BMDOHYEON_ttf.ttf"
 class PeriodFrequencies(BaseModel):
     period: str
     frequencies: Dict[str, int]
+    keyword_articles: Dict[str, List[int]] = {}
 
 
 class GenerateRequest(RootModel[List[PeriodFrequencies]]):
@@ -74,6 +75,15 @@ def top_n_frequencies(freq: Dict[str, int], n: int = 5) -> Dict[str, int]:
     return dict(top_items)
 
 
+def top_n_keyword_articles(
+    top_freq: Dict[str, int], keyword_articles: Dict[str, List[int]]
+) -> Dict[str, List[int]]:
+    return {
+        keyword: keyword_articles.get(keyword, [])
+        for keyword in top_freq.keys()
+    }
+
+
 @app.post("/wordclouds/generate")
 def generate_wordclouds(payload: GenerateRequest):
 
@@ -95,13 +105,20 @@ def generate_wordclouds(payload: GenerateRequest):
         wordcloud_img = wc.generate_from_frequencies(keywords)
         wordcloud_img.to_file(str(OUTPUT_DIR / f"wordcloud_{list_name[idx]}.png"))
 
-    return [
-        {
-            "period": item.period,
-            "frequencies": top_n_frequencies(item.frequencies, 5),
-        }
-        for item in periods
-    ]
+    response = []
+    for item in periods:
+        top_freq = top_n_frequencies(item.frequencies, 5)
+        response.append(
+            {
+                "period": item.period,
+                "frequencies": top_freq,
+                "keyword_articles": top_n_keyword_articles(
+                    top_freq, item.keyword_articles
+                ),
+            }
+        )
+
+    return response
 
 
 @app.get("/keyword-info/{period}", response_model=List[KeywordInfoRow])
