@@ -47,6 +47,7 @@ class KeywordInfoRow(BaseModel):
     keyword: str
     title: str
     link: str
+    counts: int
 
 
 def get_required_env(*keys: str) -> str:
@@ -124,10 +125,10 @@ def generate_wordclouds(payload: GenerateRequest):
 @app.get("/keyword-info/{period}", response_model=List[KeywordInfoRow])
 def get_keyword_info(period: Literal["3day", "7day", "1month"]):
     query = """
-        SELECT keyword, title, link
+        SELECT keyword, title, link, counts
         FROM public.keyword_info
         WHERE period = %s
-        ORDER BY keyword, title
+        ORDER BY counts DESC, keyword, title
     """
     try:
         with get_db_connection() as conn:
