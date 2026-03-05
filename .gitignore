@@ -5,3 +5,6 @@ wordcloud_output/wordcloud_1month.png
 __pycache__/
 *.pyc
 BMDOHYEON_ttf.ttf
+spec/
+tasks/
+CLAUDE.md
