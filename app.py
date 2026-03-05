@@ -223,9 +223,16 @@ def get_keyword_change(
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"DB query failed: {exc}")
 
+    _KEYWORD_BLOCKLIST = {"ai", "ai 모델"}
+
     rising, falling, new = [], [], []
     for row in rows:
         item = KeywordChangeItem(**row)
+        word = item.keyword.strip()
+        if len(word) < 2:
+            continue
+        if word.lower() in _KEYWORD_BLOCKLIST:
+            continue
         if item.prev == 0 and item.cur > 0:
             new.append(item)
         elif item.delta > 0:
