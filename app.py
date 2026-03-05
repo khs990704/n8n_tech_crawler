@@ -1,8 +1,9 @@
 import os
+from datetime import date, timedelta
 from pathlib import Path
-from typing import Dict, List, Literal
+from typing import Dict, List, Literal, Optional
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, RootModel
@@ -120,6 +121,129 @@ def generate_wordclouds(payload: GenerateRequest):
         )
 
     return response
+
+
+class KeywordChangeItem(BaseModel):
+    keyword: str
+    cur: int
+    prev: int
+    delta: int
+    pct: Optional[float]
+
+
+class WindowBound(BaseModel):
+    start: date
+    end: date
+
+
+class KeywordChangeWindow(BaseModel):
+    current: WindowBound
+    previous: WindowBound
+
+
+class KeywordChangeResponse(BaseModel):
+    period: str
+    window: KeywordChangeWindow
+    rising: List[KeywordChangeItem]
+    falling: List[KeywordChangeItem]
+    new: List[KeywordChangeItem]
+
+
+def _get_period_windows(period: str) -> tuple[WindowBound, WindowBound]:
+    today = date.today()
+    if period == "3day":
+        days = 3
+    elif period == "7day":
+        days = 7
+    else:
+        days = 30
+    current = WindowBound(start=today - timedelta(days=days), end=today)
+    previous = WindowBound(
+        start=today - timedelta(days=days * 2),
+        end=today - timedelta(days=days),
+    )
+    return current, previous
+
+
+@app.get("/keyword-change/{period}", response_model=KeywordChangeResponse)
+def get_keyword_change(
+    period: Literal["3day", "7day", "1month"],
+    limit: int = Query(default=5, ge=1),
+    min_count: int = Query(default=0, ge=0),
+):
+    current, previous = _get_period_windows(period)
+
+    query = """
+        WITH current_counts AS (
+            SELECT keyword, COUNT(*) AS cnt
+            FROM public.rss_article_keyword
+            WHERE date >= %(cur_start)s AND date <= %(cur_end)s
+            GROUP BY keyword
+        ),
+        prev_counts AS (
+            SELECT keyword, COUNT(*) AS cnt
+            FROM public.rss_article_keyword
+            WHERE date >= %(prev_start)s AND date < %(prev_end)s
+            GROUP BY keyword
+        ),
+        combined AS (
+            SELECT
+                COALESCE(c.keyword, p.keyword) AS keyword,
+                COALESCE(c.cnt, 0) AS cur,
+                COALESCE(p.cnt, 0) AS prev
+            FROM current_counts c
+            FULL OUTER JOIN prev_counts p ON c.keyword = p.keyword
+        )
+        SELECT
+            keyword,
+            cur,
+            prev,
+            (cur - prev) AS delta,
+            CASE
+                WHEN prev = 0 THEN NULL
+                ELSE ROUND(((cur - prev)::numeric / prev) * 100, 4)
+            END AS pct
+        FROM combined
+        WHERE (cur > 0 OR prev > 0)
+          AND (cur >= %(min_count)s OR prev >= %(min_count)s)
+    """
+    params = {
+        "cur_start": current.start,
+        "cur_end": current.end,
+        "prev_start": previous.start,
+        "prev_end": previous.end,
+        "min_count": min_count,
+    }
+
+    try:
+        with get_db_connection() as conn:
+            with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                cur.execute(query, params)
+                rows = cur.fetchall()
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"DB query failed: {exc}")
+
+    rising, falling, new = [], [], []
+    for row in rows:
+        item = KeywordChangeItem(**row)
+        if item.prev == 0 and item.cur > 0:
+            new.append(item)
+        elif item.delta > 0:
+            rising.append(item)
+        elif item.delta < 0:
+            falling.append(item)
+
+    rising.sort(key=lambda x: x.delta, reverse=True)
+    falling.sort(key=lambda x: x.delta)
+    new.sort(key=lambda x: x.cur, reverse=True)
+
+    return KeywordChangeResponse(
+        period=period,
+        window=KeywordChangeWindow(current=current, previous=previous),
+        rising=rising[:limit],
+        falling=falling[:limit],
+        new=new[:limit],
+    )
 
 
 @app.get("/keyword-info/{period}", response_model=List[KeywordInfoRow])
