@@ -253,6 +253,77 @@ def get_keyword_change(
     )
 
 
+_PERIOD_LABEL: Dict[str, str] = {
+    "3day": "최근 3일",
+    "7day": "최근 7일",
+    "1month": "최근 1개월",
+}
+
+_COMPANY_KEYWORDS = {
+    "openai", "google", "microsoft", "meta", "anthropic", "xai", "nvidia",
+    "apple", "amazon", "samsung", "sk", "lg", "kakao", "naver", "baidu",
+    "deepmind", "mistral", "cohere", "stability ai", "hugging face",
+}
+
+
+class SummaryPeriodInput(BaseModel):
+    period: str
+    frequencies: Dict[str, int]
+    rising: List[KeywordChangeItem] = []
+
+
+class KeywordSummaryRequest(BaseModel):
+    data: List[SummaryPeriodInput]
+
+
+class PeriodSummary(BaseModel):
+    period: str
+    summary: str
+
+
+def _build_summary(item: SummaryPeriodInput) -> str:
+    label = _PERIOD_LABEL.get(item.period, item.period)
+    sentences = []
+
+    if not item.frequencies:
+        return f"{label} 동안 유의미한 AI 키워드 언급이 집계되지 않았습니다."
+
+    top3 = sorted(item.frequencies.items(), key=lambda x: x[1], reverse=True)[:3]
+    top3_names = ", ".join(k for k, _ in top3)
+    sentences.append(f"{label} 동안 AI 뉴스에서 가장 많이 언급된 키워드는 {top3_names} 입니다.")
+
+    if item.rising:
+        best = max(item.rising, key=lambda x: x.delta)
+        if best.pct is not None:
+            pct_int = round(best.pct)
+            sentences.append(
+                f"특히 {best.keyword} 언급이 이전 동일 기간 대비 +{pct_int}% 증가했습니다."
+            )
+        else:
+            sentences.append(
+                f"특히 {best.keyword} 언급이 이전 동일 기간 대비 +{best.delta}건 증가했습니다."
+            )
+
+    company_hits = [
+        (k, v) for k, v in item.frequencies.items()
+        if k.lower() in _COMPANY_KEYWORDS
+    ]
+    if len(company_hits) >= 2:
+        top_companies = sorted(company_hits, key=lambda x: x[1], reverse=True)[:3]
+        company_names = ", ".join(k for k, _ in top_companies)
+        sentences.append(f"기업 언급은 {company_names} 순으로 많았습니다.")
+
+    return " ".join(sentences)
+
+
+@app.post("/keyword-summary", response_model=List[PeriodSummary])
+def get_keyword_summary(payload: KeywordSummaryRequest):
+    return [
+        PeriodSummary(period=item.period, summary=_build_summary(item))
+        for item in payload.data
+    ]
+
+
 @app.get("/keyword-info/{period}", response_model=List[KeywordInfoRow])
 def get_keyword_info(period: Literal["3day", "7day", "1month"]):
     query = """
