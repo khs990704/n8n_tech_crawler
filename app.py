@@ -150,17 +150,17 @@ class KeywordChangeResponse(BaseModel):
 
 
 def _get_period_windows(period: str) -> tuple[WindowBound, WindowBound]:
-    today = date.today()
+    yesterday = date.today() - timedelta(days=1)
     if period == "3day":
         days = 3
     elif period == "7day":
         days = 7
     else:
         days = 30
-    current = WindowBound(start=today - timedelta(days=days), end=today)
+    current = WindowBound(start=yesterday - timedelta(days=days), end=yesterday)
     previous = WindowBound(
-        start=today - timedelta(days=days * 2),
-        end=today - timedelta(days=days),
+        start=yesterday - timedelta(days=days * 2),
+        end=yesterday - timedelta(days=days),
     )
     return current, previous
 
