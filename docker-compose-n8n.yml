@@ -43,6 +43,7 @@ services:
       - DB_POSTGRESDB_DATABASE=${N8N_POSTGRES_DB}
       - DB_POSTGRESDB_USER=${N8N_POSTGRES_USER}
       - DB_POSTGRESDB_PASSWORD=${N8N_POSTGRES_PASSWORD}
+      - N8N_SECURE_COOKIE=${N8N_SECURE_COOKIE}
     volumes:
       - n8n_data:/home/node/.n8n
     extra_hosts:
