@@ -14,6 +14,8 @@ if [ ! -f "$COMPOSE_FILE" ]; then
     exit 1
 fi
 
+COMPOSE_PROJECT_NAME="n8n_${SERVICE_NAME}"
+
 remove_containers() {
     local filter="$1"
     local container_ids
@@ -41,7 +43,7 @@ else
     remove_containers "name=^/n8n_${SERVICE_NAME}"
 fi
 
-docker-compose -f "$COMPOSE_FILE" up --build -d --remove-orphans
+docker-compose -p "$COMPOSE_PROJECT_NAME" -f "$COMPOSE_FILE" up --build -d --remove-orphans
 
 if [ "$SERVICE_NAME" = "ollama" ]; then
     echo "Waiting for ollama server..."
