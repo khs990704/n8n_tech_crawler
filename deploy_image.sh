@@ -29,6 +29,7 @@ if [ "$SERVICE_NAME" = "n8n" ]; then
     remove_containers "name=^/n8n_main$"
     remove_containers "name=^/n8n_worker$"
     remove_containers "name=^/n8n_redis$"
+    remove_containers "name=^/n8n_postgres$"
 elif [ "$SERVICE_NAME" = "db" ]; then
     remove_containers "name=^/n8n_db$"
     remove_containers "name=^/n8n_db_migrate$"
@@ -40,7 +41,7 @@ else
     remove_containers "name=^/n8n_${SERVICE_NAME}"
 fi
 
-docker-compose -f "$COMPOSE_FILE" up --build -d
+docker-compose -f "$COMPOSE_FILE" up --build -d --remove-orphans
 
 if [ "$SERVICE_NAME" = "ollama" ]; then
     echo "Waiting for ollama server..."
