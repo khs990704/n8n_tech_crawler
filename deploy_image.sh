@@ -34,8 +34,28 @@ elif [ "$SERVICE_NAME" = "db" ]; then
     remove_containers "name=^/n8n_db_migrate$"
 elif [ "$SERVICE_NAME" = "api" ]; then
     remove_containers "name=^/fastapi_server$"
+elif [ "$SERVICE_NAME" = "ollama" ]; then
+    remove_containers "name=^/ollama$"
 else
     remove_containers "name=^/n8n_${SERVICE_NAME}"
 fi
 
 docker-compose -f "$COMPOSE_FILE" up --build -d
+
+if [ "$SERVICE_NAME" = "ollama" ]; then
+    echo "Waiting for ollama server..."
+    for i in {1..30}; do
+        if docker exec ollama ollama ps >/dev/null 2>&1; then
+            break
+        fi
+        sleep 2
+    done
+
+    if ! docker exec ollama ollama ps >/dev/null 2>&1; then
+        echo "Error: ollama server is not ready."
+        exit 1
+    fi
+
+    echo "Pulling model: llama3:latest"
+    docker exec ollama ollama pull llama3:latest
+fi
