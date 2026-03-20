@@ -9,8 +9,15 @@ services:
     volumes:
       - ollama_data:/root/.ollama
     command: ["serve"]
+    networks:
+      - ai_bridge
     restart: unless-stopped
 
 volumes:
   ollama_data:
     driver: local
+
+networks:
+  ai_bridge:
+    name: n8n_ai_bridge
+    driver: bridge

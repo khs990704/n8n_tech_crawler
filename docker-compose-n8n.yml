@@ -9,11 +9,15 @@ services:
       - TZ=Asia/Seoul
     volumes:
       - n8n_postgres_data:/var/lib/postgresql/data
+    networks:
+      - ai_bridge
     restart: unless-stopped
 
   redis:
     image: redis:7
     container_name: n8n_redis
+    networks:
+      - ai_bridge
     restart: unless-stopped
 
   n8n-main:
@@ -43,6 +47,8 @@ services:
       - n8n_data:/home/node/.n8n
     extra_hosts:
       - "host.docker.internal:host-gateway"
+    networks:
+      - ai_bridge
     depends_on:
       - postgres
       - redis
@@ -68,6 +74,8 @@ services:
       - DB_POSTGRESDB_PASSWORD=${N8N_POSTGRES_PASSWORD}
     extra_hosts:
       - "host.docker.internal:host-gateway"
+    networks:
+      - ai_bridge
     depends_on:
       - postgres
       - redis
@@ -78,3 +86,8 @@ volumes:
     driver: local
   n8n_postgres_data:
     driver: local
+
+networks:
+  ai_bridge:
+    name: n8n_ai_bridge
+    driver: bridge
